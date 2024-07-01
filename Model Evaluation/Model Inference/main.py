@@ -1,12 +1,26 @@
 from transformers import AutoTokenizer, AutoModel
+from Bio import SeqIO
 import numpy as np
 import torch
+import time
+
+sequences = []
+
+
+def seqReader(file, fileType):
+    count = 1
+    for sequence in SeqIO.parse(file, fileType):
+        sequences.append({"id": count, "seq": sequence.seq})
+        count += 1
+
+
+seqReader("YAL001C.fasta", "fasta")
 
 
 def generateEmbeddings(modelName):
     tokenizer = AutoTokenizer.from_pretrained(modelName)
     model = AutoModel.from_pretrained(modelName)
-
+    start = time.perf_counter()
     embeddings = []
     for element in sequences:
         sequence = element["seq"]
@@ -20,8 +34,9 @@ def generateEmbeddings(modelName):
         with torch.no_grad():
             outputs = model(**inputs)
         embeddings.append(outputs.last_hidden_state.mean(dim=1).squeeze().numpy())
+    finish = time.perf_counter()
 
-    return modelName, embeddings
+    return modelName, embeddings, start, finish
 
 
 models = [
@@ -41,8 +56,11 @@ modelEmbeddings = []
 with concurrent.futures.ProcessPoolExecutor() as executor:
     results = executor.map(generateEmbeddings, models)
     for result in results:
-        modelName, embeddings = result
+        modelName, embeddings, start, finish = result
         modelEmbeddings.append({"model": modelName, "embeddings": embeddings})
+        print(
+            f"Finished generating embeddings using {modelName} in {round(finish - start) % 60} minutes."
+        )
 
 with open("ModelResults.txt", "w+") as f:
     f.write(str(modelEmbeddings))
