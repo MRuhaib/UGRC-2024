@@ -1,4 +1,7 @@
+import numpy as np
 import torch
+import pandas as pd
+import array
 
 models = [
     "LongSafari/hyenadna-medium-450k-seqlen-hf",
@@ -11,10 +14,6 @@ models = [
 
 for model in models:
     name = model.split("/")[1]
-    with open(f"../Model Inference/Embeddings/{name}.txt", "r+") as f:
-        arr = f.read()
-        print(len(arr), arr[:100])
-
-test = torch.tensor([1, 2, 3])
-with open("test.txt", "w+") as f:
-    f.write(test)
+    with open(f"Embeddings/{name}.txt", "r+") as f:
+        modelDict = eval(f.read())
+        print(model, len(modelDict[0]["embedding"]))
