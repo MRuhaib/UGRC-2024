@@ -16,7 +16,7 @@ seqReader("YAL001C.fasta", "fasta")
 
 alignmentScores = pd.read_csv("alignmentScores.csv")
 
-start = time.perf_counter()
+start = time.time()
 
 for i in range(len(sequences)):
     for j in range(len(sequences)):
@@ -25,6 +25,6 @@ for i in range(len(sequences)):
 alignmentScores.to_csv("alignmentScoresFilled.csv")
 
 
-finish = time.perf_counter()
+finish = time.time()
 
-print(f"Done with filling dataframe in {round(finish - start) % 60} minutes.")
+print(f"Done with filling dataframe in {round(finish - start) // 60} minutes.")

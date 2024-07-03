@@ -41,14 +41,14 @@ def rowAdder(i):
 alignmentScores = pd.DataFrame(columns=[i for i in range(len(sequences))])
 
 if __name__ == "__main__":
-    start = time.perf_counter()
+    start = time.time()
     with concurrent.futures.ProcessPoolExecutor(max_workers=25) as executor:
         results = executor.map(rowAdder, range(len(sequences)))
         for result in results:
             i, row = result
             alignmentScores[i] = row
-    finish = time.perf_counter()
+    finish = time.time()
     print(
-        f"Done with pairwise comparison of {len(sequences)} sequences in {round(finish - start) % 60} minutes."
+        f"Done with pairwise comparison of {len(sequences)} sequences in {round(finish - start) // 60} minutes."
     )
     alignmentScores.to_csv("alignmentScores.csv")

@@ -1,10 +1,14 @@
 from transformers import AutoTokenizer, AutoModel
+from transformers.models.bert.configuration_bert import BertConfig
 from Bio import SeqIO
 import numpy as np
-import torch
 import time
+import concurrent.futures
+import torch
 
 sequences = []
+
+device = "cuda" if torch.cuda.is_available() else "cpu"
 
 
 def seqReader(file, fileType):
@@ -14,53 +18,73 @@ def seqReader(file, fileType):
         count += 1
 
 
-seqReader("YAL001C.fasta", "fasta")
+seqReader("../Sequence Alignment/YAL001C.fasta", "fasta")
 
 
 def generateEmbeddings(modelName):
-    tokenizer = AutoTokenizer.from_pretrained(modelName)
-    model = AutoModel.from_pretrained(modelName)
-    start = time.perf_counter()
+    config = BertConfig.from_pretrained(modelName)
+    tokenizer = AutoTokenizer.from_pretrained(modelName, trust_remote_code=True)
+    model = AutoModel.from_pretrained(
+        modelName, trust_remote_code=True, config=config
+    ).to(device)
     embeddings = []
+
+    start = time.time()
+    print(f"Starting to generate {modelName}'s embeddings.")
     for element in sequences:
-        sequence = element["seq"]
+        sequence = str(element["seq"])
         inputs = tokenizer(
             sequence,
             return_tensors="pt",
             padding=True,
             truncation=True,
-            output_hidden_states=True,
-        )
+        ).to(device)
         with torch.no_grad():
             outputs = model(**inputs)
-        embeddings.append(outputs.last_hidden_state.mean(dim=1).squeeze().numpy())
-    finish = time.perf_counter()
+        embeddings.append(outputs.last_hidden_state.cpu().mean(dim=1).squeeze().numpy())
+    finish = time.time()
 
-    return modelName, embeddings, start, finish
+    print(
+        f"Finished generating {modelName}'s embeddings in {round(finish - start)} seconds."
+    )
+    with open(f"Embeddings/{modelName.split('/')[1]}.txt", "w+") as f:
+        f.write(str(embeddings))
 
 
-models = [
+"""
+Done with: 
+
     "LongSafari/hyenadna-medium-450k-seqlen-hf",
     "InstaDeepAI/nucleotide-transformer-500m-human-ref",
-    "AIRI-Institute/gena-lm-bert-base-t2t",
-    "zhihan1996/DNABERT-S",
-    "zhihan1996/DNABERT-2-117M",
+    "AIRI-Institute/gena-lm-bigbird-base-t2t", #Max input sequence - 4096
+    "LongSafari/hyenadna-large-1m-seqlen-hf",
+    "InstaDeepAI/nucleotide-transformer-2.5b-multi-species",
+    "InstaDeepAI/nucleotide-transformer-2.5b-1000g",
+
+Not Working:
+    #"zhihan1996/DNABERT-S",
+    #"zhihan1996/DNABERT-2-117M", - wrong config? The model class you are passing has a `config_class` attribute that is not consistent with the config class you passed
+and when using bertconfig: TypeError("dot() got an unexpected keyword argument 'trans_b'")
+                           UserWarning: Increasing alibi size from 512 to 709
+    "kuleshov-group/caduceus-ps_seqlen-131k_d_model-256_n_layer-16",
     "kuleshov-group/caduceus-ph_seqlen-131k_d_model-256_n_layer-16",
-    "EleutherAI/enformer-official-rough",
-]
+    "ctheodoris/Geneformer", 
+    "EleutherAI/enformer-official-rough", - unrecognized architecture?
 
-import concurrent.futures
+Not on huggingface: 
+    borzoi, satori, scGPT
+"""
 
-modelEmbeddings = []
+models = ["zhihan1996/DNABERT-2-117M"]
 
+if __name__ == "__main__":
+    for model in models:
+        generateEmbeddings(model)
+
+"""
 with concurrent.futures.ProcessPoolExecutor() as executor:
     results = executor.map(generateEmbeddings, models)
     for result in results:
-        modelName, embeddings, start, finish = result
+        modelName, embeddings = result
         modelEmbeddings.append({"model": modelName, "embeddings": embeddings})
-        print(
-            f"Finished generating embeddings using {modelName} in {round(finish - start) % 60} minutes."
-        )
-
-with open("ModelResults.txt", "w+") as f:
-    f.write(str(modelEmbeddings))
+"""
