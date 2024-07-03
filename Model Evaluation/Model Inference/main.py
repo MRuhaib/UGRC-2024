@@ -22,10 +22,10 @@ seqReader("../Sequence Alignment/YAL001C.fasta", "fasta")
 
 
 def generateEmbeddings(modelName):
-    config = BertConfig.from_pretrained(modelName)
     tokenizer = AutoTokenizer.from_pretrained(modelName, trust_remote_code=True)
     model = AutoModel.from_pretrained(
-        modelName, trust_remote_code=True, config=config
+        modelName,
+        trust_remote_code=True,
     ).to(device)
     embeddings = []
 
@@ -41,23 +41,27 @@ def generateEmbeddings(modelName):
         ).to(device)
         with torch.no_grad():
             outputs = model(**inputs)
-        embeddings.append(outputs.last_hidden_state.cpu().mean(dim=1).squeeze().numpy())
+        embedding = [
+            item
+            for item in outputs.last_hidden_state.cpu().mean(dim=1).squeeze().numpy()
+        ]
+        embeddings.append({"seq": element["id"], "embedding": embedding})
     finish = time.time()
 
     print(
         f"Finished generating {modelName}'s embeddings in {round(finish - start)} seconds."
     )
-    with open(f"Embeddings/{modelName.split('/')[1]}.txt", "w+") as f:
+    with open(f"{modelName.split('/')[1]}.txt", "w+") as f:
         f.write(str(embeddings))
 
 
 """
 Done with: 
 
-    "LongSafari/hyenadna-medium-450k-seqlen-hf",
-    "InstaDeepAI/nucleotide-transformer-500m-human-ref",
-    "AIRI-Institute/gena-lm-bigbird-base-t2t", #Max input sequence - 4096
-    "LongSafari/hyenadna-large-1m-seqlen-hf",
+    #"LongSafari/hyenadna-medium-450k-seqlen-hf",
+    #"InstaDeepAI/nucleotide-transformer-500m-human-ref",
+    #"AIRI-Institute/gena-lm-bigbird-base-t2t", #Max input sequence - 4096
+    #"LongSafari/hyenadna-large-1m-seqlen-hf",
     "InstaDeepAI/nucleotide-transformer-2.5b-multi-species",
     "InstaDeepAI/nucleotide-transformer-2.5b-1000g",
 
@@ -75,7 +79,14 @@ Not on huggingface:
     borzoi, satori, scGPT
 """
 
-models = ["zhihan1996/DNABERT-2-117M"]
+models = [
+    "LongSafari/hyenadna-medium-450k-seqlen-hf",
+    "InstaDeepAI/nucleotide-transformer-500m-human-ref",
+    "AIRI-Institute/gena-lm-bigbird-base-t2t",
+    "LongSafari/hyenadna-large-1m-seqlen-hf",
+    "InstaDeepAI/nucleotide-transformer-2.5b-multi-species",
+    "InstaDeepAI/nucleotide-transformer-2.5b-1000g",
+]
 
 if __name__ == "__main__":
     for model in models:

@@ -52,3 +52,5 @@ if __name__ == "__main__":
         f"Done with pairwise comparison of {len(sequences)} sequences in {round(finish - start) // 60} minutes."
     )
     alignmentScores.to_csv("alignmentScores.csv")
+
+# TODO: refactor all of this into jupiter notebooks
