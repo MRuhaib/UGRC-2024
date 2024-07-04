@@ -11,8 +11,6 @@ models = [
     "InstaDeepAI/nucleotide-transformer-2.5b-1000g",
 ]
 
-modelEmbeddings = []
-
 def main(modelCount):
     length = 1011 #straight up hard coding it, reading the file each time to find the length takes time.
     start = time.time()
