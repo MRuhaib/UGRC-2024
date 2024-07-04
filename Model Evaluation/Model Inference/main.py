@@ -80,12 +80,7 @@ Not on huggingface:
 """
 
 models = [
-    "LongSafari/hyenadna-medium-450k-seqlen-hf",
-    "InstaDeepAI/nucleotide-transformer-500m-human-ref",
-    "AIRI-Institute/gena-lm-bigbird-base-t2t",
-    "LongSafari/hyenadna-large-1m-seqlen-hf",
-    "InstaDeepAI/nucleotide-transformer-2.5b-multi-species",
-    "InstaDeepAI/nucleotide-transformer-2.5b-1000g",
+    # add models here
 ]
 
 if __name__ == "__main__":
@@ -99,3 +94,4 @@ with concurrent.futures.ProcessPoolExecutor() as executor:
         modelName, embeddings = result
         modelEmbeddings.append({"model": modelName, "embeddings": embeddings})
 """
+# TODO: refactor all of this into jupiter notebooks

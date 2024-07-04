@@ -14,7 +14,8 @@ def seqReader(file, fileType):
 
 seqReader("YAL001C.fasta", "fasta")
 
-alignmentScores = pd.read_csv("alignmentScores.csv")
+alignmentScores = pd.read_csv("Sequence Alignment Scores/alignmentScores.csv")
+# Note that when reading these csv files, delete the first column from the csv file so that it can be read properly by pandas.
 
 start = time.time()
 
