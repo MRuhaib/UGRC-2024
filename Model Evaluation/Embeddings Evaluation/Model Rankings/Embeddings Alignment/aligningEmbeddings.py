@@ -6,7 +6,7 @@ import concurrent.futures
 import time
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
-
+"""
 models = [
     "LongSafari/hyenadna-medium-450k-seqlen-hf",
     "InstaDeepAI/nucleotide-transformer-500m-human-ref",
@@ -18,9 +18,19 @@ models = [
 
 for model in models:
     name = model.split("/")[1]
-    with open(f"../Embeddings/{name}.txt", "r+") as f:
+    with open(f"../Embeddings/Hyena/{name}.txt", "r+") as f:  # remove hyena
         modelDict = eval(f.read())
         modelEmbeddings.append(modelDict)
+"""
+models = [
+    "LongSafari/hyenadna-tiny-1k-seqlen-hf",
+    "LongSafari/hyenadna-tiny-1k-seqlen-d256-hf",
+    "LongSafari/hyenadna-tiny-16k-seqlen-d128-hf",
+    "LongSafari/hyenadna-small-32k-seqlen-hf",
+    "LongSafari/hyenadna-medium-160k-seqlen-hf",
+    "LongSafari/hyenadna-medium-450k-seqlen-hf",
+    "LongSafari/hyenadna-large-1m-seqlen-hf",
+]
 
 
 def cos_sim(embedding1, embedding2):
@@ -41,7 +51,7 @@ def cos_sim(embedding1, embedding2):
 # Adapted from https://github.com/UKPLab/sentence-transformers/blob/master/sentence_transformers/util.py, so as to efficiently use the gpu.
 
 
-def rowAdder(i, modelEmbeddings, modelCount):
+def rowAdder(i, modelEmbeddings, model):
     # i must correspond to one specific sequence and its embedding!
 
     row = np.zeros(len(modelEmbeddings))
@@ -52,33 +62,33 @@ def rowAdder(i, modelEmbeddings, modelCount):
         )
         row[j] = cos_sim(embedding1, embedding2).squeeze()
     if i % 50 == 0:
-        print(
-            f"Done with {i} rows for {(models[modelCount]).split('/')[1]}'s embeddings comparison"
-        )
+        print(f"Done with {i} rows for {(model).split('/')[1]}'s embeddings comparison")
     return row
 
 
-def main(modelCount):
+def main(model):
     start = time.time()
     modelEmbeddings = []
-    with open(f"../Embeddings/{(models[modelCount]).split('/')[1]}.txt", "r+") as f:
+    with open(
+        f"../Embeddings/Hyena/{(model).split('/')[1]}.txt", "r+"
+    ) as f:  # remove hyena
         modelEmbeddings = eval(f.read())
-    print(f"Starting embeddings alignment for {(models[modelCount]).split('/')[1]}.")
+    print(f"Starting embeddings alignment for {(model).split('/')[1]}.")
     embeddingAlignmentScores = pd.DataFrame(
         columns=[i for i in range(len(modelEmbeddings))]
     )
     for i in range(len(modelEmbeddings)):
-        row = rowAdder(i, modelEmbeddings, modelCount)
+        row = rowAdder(i, modelEmbeddings, model)
         embeddingAlignmentScores[i] = row
     embeddingAlignmentScores.to_csv(
-        f"Embedding Alignment Scores/Raw/{(models[modelCount]).split('/')[1]}Scores.csv"
+        f"Embedding Alignment Scores/Raw/Hyena/{(model).split('/')[1]}Scores.csv"  # remove hyena
     )
     finish = time.time()
-    return f"Done with pairwise comparison of {(models[modelCount]).split('/')[1]}'s embeddings in {round(finish - start)} seconds."
+    return f"Done with pairwise comparison of {(model).split('/')[1]}'s embeddings in {round(finish - start)} seconds."
 
 
 if __name__ == "__main__":
     with concurrent.futures.ProcessPoolExecutor(max_workers=25) as executor:
-        results = executor.map(main, range(len(models)))
+        results = executor.map(main, models)
         for result in results:
             print(result)
