@@ -1,6 +1,9 @@
 import pandas as pd
 import concurrent.futures
 import time
+
+#Note that this isn't required if using squareform with scipy's pdist!
+
 '''
 models = [
     "LongSafari/hyenadna-medium-450k-seqlen-hf",
@@ -21,10 +24,12 @@ models = [
     "LongSafari/hyenadna-large-1m-seqlen-hf",
 ]
 
+method = 'Cosine'
+
 def main(model):
     length = 1011 #straight up hard coding it, reading the file each time to find the length takes time.
     start = time.time()
-    embeddingAlignmentScores = pd.read_csv(f"Embedding Alignment Scores/Raw/Hyena/{(model).split('/')[1]}Scores.csv") # remove hyena
+    embeddingAlignmentScores = pd.read_csv(f"Embedding Alignment Scores/{method}/Raw/Hyena/{(model).split('/')[1]}Scores.csv") # remove hyena
     for i in range(length):
         for j in range(length):
             embeddingAlignmentScores.iloc[i, j] = embeddingAlignmentScores.iloc[j, i]
@@ -33,7 +38,7 @@ def main(model):
             f"Done with filling {i} rows from {(model).split('/')[1]}'s embeddings comparison matrix"
         )
     embeddingAlignmentScores.to_csv(
-        f"Embedding Alignment Scores/Filled/Hyena/{(model).split('/')[1]}Scores.csv" # remove hyena
+        f"Embedding Alignment Scores/{method}/Filled/Hyena/{(model).split('/')[1]}Scores.csv" # remove hyena
     )
     finish = time.time()
     return f'Finished filling the embedding alignment scores for {(model).split('/')[1]} in {round(finish - start)} seconds.'
