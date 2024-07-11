@@ -26,6 +26,9 @@ def getUniqueClades():
         f.write(str(distribution))
 
 
+# Note that 'UN' represents 'unclustered'!
+
+
 def getSeqClades(file):
     sequences = []
     count = 1
