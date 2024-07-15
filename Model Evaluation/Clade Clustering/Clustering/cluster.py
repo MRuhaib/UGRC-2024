@@ -12,6 +12,8 @@ from sklearn.cluster import (
     OPTICS,
     AffinityPropagation,
 )
+from scipy.cluster.hierarchy import linkage, fcluster, dendrogram
+from scipy.spatial.distance import pdist
 import concurrent.futures
 from biotite.sequence import NucleotideSequence
 
@@ -101,6 +103,7 @@ def plotter(model, df, method, cluster, algo=None):
 
 def cluster(model, embeddings, df, method, algo):
     # read: https://scikit-learn.org/stable/modules/clustering.html
+    # sklearn clustering - note that we're clustering based on the original embeddings, not the ones whose dimesnions have been reduced:
     if algo == "KMeans":
         clusteringModel = KMeans(n_clusters=30, random_state=1).fit(embeddings)
     elif algo == "Agglomerative":
@@ -137,7 +140,6 @@ def main(model, method="UMAP"):
             clades.append(seq["clade"])
 
     # method = input("Enter dimension reduction method:").upper()
-
     if method == "UMAP":
         results, params = U_MAP(embeddings)
         columns = ["UMAP1", "UMAP2"]
@@ -149,7 +151,7 @@ def main(model, method="UMAP"):
     df["Clades"] = clades
 
     plotter(model, df, method, "Clades")
-    """
+
     algos = [
         "KMeans",
         "Agglomerative",
@@ -160,7 +162,7 @@ def main(model, method="UMAP"):
     ]
     for algo in algos:
         cluster(model, embeddings, df, method, algo)
-    """
+
     return f"Done with {model}"
 
 
