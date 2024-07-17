@@ -11,6 +11,7 @@ def getUniqueClades():
     clades = metadata["Clades"]
     uniqueClades = []
     distribution = []
+    allCount = []
     for clade in clades:
         if clade not in uniqueClades:
             uniqueClades.append(clade)
@@ -20,10 +21,16 @@ def getUniqueClades():
         for seq in clades:
             if seq == clade:
                 count += 1
-        distribution.append({"clade": clade, "count": count})
+        # distribution.append({"clade": clade, "count": count})
+        allCount.append(count)
 
+    allCount = np.array(allCount)
+    return np.median(allCount), np.mean(allCount)
+
+    """
     with open("clades.txt", "w+") as f:
         f.write(str(distribution))
+    """
 
 
 # Note that 'UN' represents 'unclustered'!
@@ -51,4 +58,5 @@ def getSeqClades(file):
         f.write(str(sequences))
 
 
-getSeqClades("YAL001C.fasta")
+# getSeqClades("YAL001C.fasta")
+print("Median and average member count is", getUniqueClades())

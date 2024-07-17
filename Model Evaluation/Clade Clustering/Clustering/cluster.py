@@ -12,8 +12,9 @@ from sklearn.cluster import (
     OPTICS,
     AffinityPropagation,
 )
+from sklearn.metrics import silhouette_samples, silhouette_score, adjusted_rand_score
 from scipy.cluster.hierarchy import linkage, fcluster, dendrogram
-from scipy.spatial.distance import pdist
+from scipy.spatial.distance import pdist, squareform
 import concurrent.futures
 from biotite.sequence import NucleotideSequence
 
@@ -53,22 +54,15 @@ def T_SNE(embeddings):
 def U_MAP(embeddings):
     params = {
         "random_state": 42,
-        "n_neighbors": 30,
+        "n_neighbors": 17,
         "n_epochs": None,
-        "learning_rate": 0.01,
-        "min_dist": 0.5,
-        "spread": 7,
+        # "learning_rate": 0.01,
+        "min_dist": 5,
+        "spread": 10,
+        # "metric": "manhattan",
     }
     # Adapted from https://umap-learn.readthedocs.io/en/latest/basic_usage.html
-    reducer = umap.UMAP(
-        random_state=params["random_state"],  # ensures reproducibility of umap results
-        n_neighbors=params["n_neighbors"],
-        # n_epochs=params["n_epochs"],
-        learning_rate=params["learning_rate"],
-        min_dist=params["min_dist"],
-        spread=params["spread"],
-        metric="manhattan",
-    )
+    reducer = umap.UMAP(**params)
     umapResults = reducer.fit_transform(embeddings)
 
     return umapResults, params
@@ -101,24 +95,38 @@ def plotter(model, df, method, cluster, algo=None):
         )
 
 
-def cluster(model, embeddings, df, method, algo):
+def cluster(model, embeddings, df, method, algo, param):
     # read: https://scikit-learn.org/stable/modules/clustering.html
     # sklearn clustering - note that we're clustering based on the original embeddings, not the ones whose dimesnions have been reduced:
     if algo == "KMeans":
-        clusteringModel = KMeans(n_clusters=30, random_state=1).fit(embeddings)
+        clusteringModel = KMeans(n_clusters=param, random_state=1).fit(embeddings)
     elif algo == "Agglomerative":
-        clusteringModel = AgglomerativeClustering(n_clusters=30).fit(embeddings)
+        clusteringModel = AgglomerativeClustering(
+            n_clusters=param,
+            # distance_threshold=param,
+            linkage="complete",  # with single, as expected max threshold is also around 0.065
+        ).fit(embeddings)
     elif algo == "Birch":
         clusteringModel = Birch(n_clusters=30).fit(embeddings)
     elif algo == "DBSCAN":
-        clusteringModel = DBSCAN().fit(embeddings)
+        clusteringModel = DBSCAN(
+            eps=param,
+            # min_samples=30
+        ).fit(
+            embeddings
+        )  # max eps ~= 0.065; beyond this no clusters are distinguishable. Aligns with info from single linkage hierarchical clustering!
     elif algo == "OPTICS":
         clusteringModel = OPTICS().fit(embeddings)
     elif algo == "AffinityPropagation":
         clusteringModel = AffinityPropagation().fit(embeddings)
     labels = clusteringModel.fit_predict(embeddings)
+    clades = df["Clades"]
+    # silScore = silhouette_score(embeddings, labels)
+    randScore = adjusted_rand_score(clades, labels)
+    # replace with adjusted rand index now; have to pass the clade info too.
     df["Cluster"] = labels
-    plotter(model, df, method, "Cluster", algo)
+    # plotter(model, df, method, "Cluster", algo)
+    return randScore
 
 
 def main(model, method="UMAP"):
@@ -150,8 +158,9 @@ def main(model, method="UMAP"):
     df = pd.DataFrame(results, columns=columns)
     df["Clades"] = clades
 
-    plotter(model, df, method, "Clades")
+    # plotter(model, df, method, "Clades")
 
+    """
     algos = [
         "KMeans",
         "Agglomerative",
@@ -162,6 +171,32 @@ def main(model, method="UMAP"):
     ]
     for algo in algos:
         cluster(model, embeddings, df, method, algo)
+    """
+
+    # plot eps vs silscore
+    clusterMethod = "DBSCAN"
+    # print(cluster(model, embeddings, df, method, clusterMethod, 0.001))
+
+    fig, ax = plt.subplots()
+    x, y = [], []
+    n = 0.001
+    while n <= 0.065:  # beyond this, it creates just a single cluster
+        x.append(n)
+        score = cluster(model, embeddings, df, method, clusterMethod, n)
+        y.append(score)
+        print(score)
+        n += 0.001
+
+    ax.plot(x, y)
+    ax.set(ylim=(0, 1), xlim=(0, n))
+    plt.xlabel("eps")
+    plt.ylabel("Adjusted Rand Score")
+    plt.title(f"{clusterMethod}")
+    plt.show()
+
+    fig.savefig(
+        f"Results/Cluster Score Variation/{clusterMethod}/Adjusted Rand Score/default.png"
+    )
 
     return f"Done with {model}"
 
