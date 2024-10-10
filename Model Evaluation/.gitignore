@@ -1,0 +1,14 @@
+Sequence\ Alignment/Hamming\ Scores/*
+!Sequence\ Alignment/Hamming\ Scores/.gitkeep
+
+Model\ Inference/Full/*
+!Model\ Inference/Full/toNPZ.py
+
+Model\ Inference/Genomes/*
+
+Embeddings\ Evaluation/Full\ Genome\ Embeddings/Alignment\ Scores/Embeddings/*
+!Embeddings\ Evaluation/Full\ Genome\ Embeddings/Alignment\ Scores/Embeddings/.gitkeep
+
+Embeddings\ Evaluation/Single\ Gene\ Embeddings/Embeddings\ Alignment/Embedding\ Alignment\ Scores/*
+!Embeddings\ Evaluation/Single\ Gene\ Embeddings/Embeddings\ Alignment/Embedding\ Alignment\ Scores/Cosine/cosineAlignment.py
+!Embeddings\ Evaluation/Single\ Gene\ Embeddings/Embeddings\ Alignment/Embedding\ Alignment\ Scores/Euclidean/.gitkeep

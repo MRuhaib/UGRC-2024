@@ -7,12 +7,11 @@ import pandas as pd
 import concurrent.futures
 import time
 
-module = "Biotite"  # else, biopython
-
-sequences = []
+module = "Biopython"  # else, biopython
 
 
 def seqReader(file):
+    sequences = []
     count = 1
     if module == "Biopython":
         for sequence in SeqIO.parse(file, "fasta"):
@@ -24,6 +23,11 @@ def seqReader(file):
         for key, value in f.items():
             sequences.append({"id": count, "seq": value})
             count += 1
+    return sequences
+
+
+gene = "YAL001C"
+sequences = seqReader(f"../Model Inference/Genes/{gene}.fasta")
 
 
 matrix = biotiteAlign.SubstitutionMatrix.std_nucleotide_matrix()
@@ -40,15 +44,14 @@ def align(seq1, seq2):
         return alignment[0].score
 
 
-seqReader("YAL001C.fasta")
 alignmentScores = pd.DataFrame(columns=[i for i in range(len(sequences))])
 
 
 def rowAdder(i):
     print(f"Starting pairwise alignment of sequence {i+1}")
     row = np.zeros(len(sequences))
-    row[i] = (
-        len(sequences[i]["seq"]) * 5
+    row[i] = len(
+        sequences[i]["seq"]
     )  # Since aligning a sequence with itself gives a full score; with biotite a full score is apparently 5 times the sequence length?
     for j in range(i + 1, len(sequences)):
         seq1, seq2 = sequences[i]["seq"], sequences[j]["seq"]
@@ -56,11 +59,12 @@ def rowAdder(i):
     # print(f"Finished pairwise alignment of sequence {i+1} with all other sequences.")
     with open(f"Sequence Alignment Scores/{module}/rows.txt", "a+") as f:
         f.write(str({"seq": i, "row": list(row)}) + ",\n")
+    alignmentScores[i] = row
     return i, row
 
 
 if __name__ == "__main__":
-    """
+
     upperLimit = 20
     lowerLimit = upperLimit - 20
     while upperLimit <= len(sequences):
@@ -71,7 +75,7 @@ if __name__ == "__main__":
                 i, row = result
                 # alignmentScores[i] = row
 
-        # alignmentScores.to_csv(f"Sequence Alignment Scores/{module}/alignmentScores.csv", mode="a")
+        # alignmentScores.to_csv(f"Alignment Scores/{module}/Genes/{gene}_scores.csv", index=False)
         finish = time.time()
         print(
             f"Done with pairwise comparison of {lowerLimit} to {upperLimit} sequences in {round(finish-start, 2)} seconds."
@@ -85,9 +89,15 @@ if __name__ == "__main__":
             lowerLimit = upperLimit - 20
     """
     with concurrent.futures.ProcessPoolExecutor(max_workers=20) as executor:
-        results = executor.map(rowAdder, [400, 408, 410, 421, 552])
+        results = executor.map(rowAdder, range(len(sequences)))
         for result in results:
             i, row = result
+            alignmentScores[i] = row
+
+    alignmentScores.to_csv(
+        f"Alignment Scores/{module}/Genes/{gene}_scores.csv", index=False
+    )
+    """
     print(
         f"Done with pairwise comparison of {lowerLimit} to {upperLimit} sequences in {round(finish-start, 2)} seconds."
     )

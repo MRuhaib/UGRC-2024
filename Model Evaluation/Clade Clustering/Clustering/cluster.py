@@ -1,5 +1,6 @@
 import numpy as np
 import pandas as pd
+import json
 import matplotlib.pyplot as plt
 import seaborn as sns
 from sklearn.manifold import TSNE
@@ -39,7 +40,7 @@ models = [
 ]
 """
 models = [
-    "LongSafari/hyenadna-large-1m-seqlen-hf",
+    "LongSafari/hyenadna-medium-450k-seqlen-hf",
 ]
 
 
@@ -104,7 +105,7 @@ def cluster(model, embeddings, df, method, algo, param):
         clusteringModel = AgglomerativeClustering(
             n_clusters=param,
             # distance_threshold=param,
-            linkage="complete",  # with single, as expected max threshold is also around 0.065
+            linkage="average",  # with single, as expected max threshold is also around 0.065
         ).fit(embeddings)
     elif algo == "Birch":
         clusteringModel = Birch(n_clusters=30).fit(embeddings)
@@ -122,86 +123,129 @@ def cluster(model, embeddings, df, method, algo, param):
     labels = clusteringModel.fit_predict(embeddings)
     clades = df["Clades"]
     # silScore = silhouette_score(embeddings, labels)
-    randScore = adjusted_rand_score(clades, labels)
+    # randScore = adjusted_rand_score(clades, labels)
     # replace with adjusted rand index now; have to pass the clade info too.
     df["Cluster"] = labels
-    # plotter(model, df, method, "Cluster", algo)
+    if method:
+        plotter(model, df, method, "Cluster", algo)
     return randScore
 
 
 def main(model, method="UMAP"):
+    embeddingsSum, embeddingsAvg = [], []
     embeddings = []
-    model = model.split("/")[1]
-    with open(
-        f"../../Model Inference/Embeddings/{model}.txt", "r+"
-    ) as f:  # remove hyena
-        embeddingsDict = eval(f.read())
-        for i in range(len(embeddingsDict)):
-            embeddings.append(np.array(embeddingsDict[i]["embedding"]))
 
-    embeddings = np.array(embeddings)
+    model = model.split("/")[1]
+    npzfile = np.load(f"../../Model Inference/Full/Hyena/{model}.npz")
+    ids = sorted(npzfile.files)
+
+    for seq in ids:
+        embedding = npzfile[seq]
+        embeddingsSum.append(np.sum(embedding, axis=0))
+        embeddingsAvg.append(np.sum(embedding, axis=0) / len(embedding))
+        embeddings.append(embedding[0])
 
     clades = []
+    missing = []
     with open("../Data Labelling/labels.txt", "r+") as f:
         seqDict = eval(f.read())
+
         for seq in seqDict:
-            clades.append(seq["clade"])
+            if seq["name"] not in ids:
+                missing.append(seq["name"])
+
+        for i in ids:
+            if "SACE_" + i in missing:
+                ids[ids.index(i)] = "SACE_" + i
+
+        for seq in ids:
+            for element in seqDict:
+                if seq == element["name"]:
+                    clades.append(element["clade"])
+
+    """
+    #this is for traditional txt/json files 
+    with open(
+        f"../../Model Inference/Embeddings/Full/Hyena/{model}.json",  # remove hyena
+        "r+",  # remember to turn back to .txt file for non-full genome embeddings
+    ) as f:
+        embeddingsDict = json.load(f)  # eval(f.read())
+        for i in range(len(embeddingsDict["embeddingsAvg"])):
+            embeddingsAvg.append(
+                np.array(embeddingsDict["embeddingsAvg"][i]["embedding"])
+            )
+            embeddingsSum.append(
+                np.array(embeddingsDict["embeddingsSum"][i]["embedding"])
+            )
+    """
+
+    embeddingsSum, embeddingsAvg = np.array(embeddingsSum), np.array(embeddingsAvg)
+
+    task = input(
+        'Enter task to be done: UMAP/TSNE Vizualisation = "dimReduction", clustering vizualization = "cluster", cluster scoring = "score"'
+    )
 
     # method = input("Enter dimension reduction method:").upper()
     if method == "UMAP":
-        results, params = U_MAP(embeddings)
+        resultsSum, paramsSum = U_MAP(embeddings)
+        resultsAvg, paramsAvg = U_MAP(embeddingsAvg)
         columns = ["UMAP1", "UMAP2"]
     elif method == "TSNE":
-        results, params = T_SNE(embeddings)
+        resultsSum, paramsSum = T_SNE(embeddings)
+        resultsAvg, paramsAvg = T_SNE(embeddingsAvg)
         columns = ["TSNE1", "TSNE2"]
 
-    df = pd.DataFrame(results, columns=columns)
-    df["Clades"] = clades
+    sumDF = pd.DataFrame(resultsSum, columns=columns)
+    avgDF = pd.DataFrame(resultsAvg, columns=columns)
+    avgDF["Clades"] = clades
+    sumDF["Clades"] = clades
 
-    # plotter(model, df, method, "Clades")
+    if task == "dimReduction":
+        # This is for plotting the UMAP/TSNE results:
+        print("With embeddings summed:")
+        plotter(model, sumDF, method, "Clades")
+        print("With embeddings averaged:")
+        plotter(model, avgDF, method, "Clades")
 
-    """
-    algos = [
-        "KMeans",
-        "Agglomerative",
-        "OPTICS",
-        "Birch",  # useless
-        "DBSCAN",  # useless
-        "AffinityPropagation",
-    ]
-    for algo in algos:
-        cluster(model, embeddings, df, method, algo)
-    """
+    elif task == "cluster":
+        algos = [
+            "KMeans",
+            "Agglomerative",
+            "OPTICS",
+            "Birch",  # useless
+            "DBSCAN",  # useless
+            "AffinityPropagation",
+        ]
+        for algo in algos:
+            cluster(model, embeddings, df, method, algo, None)
+        # refactor this to handle embeddings' sum and avg
 
-    # plot eps vs silscore
-    clusterMethod = "DBSCAN"
-    # print(cluster(model, embeddings, df, method, clusterMethod, 0.001))
+    elif task == "score":
+        # plot eps vs silscore
+        clusterMethod = "DBSCAN"
 
-    fig, ax = plt.subplots()
-    x, y = [], []
-    n = 0.001
-    while n <= 0.065:  # beyond this, it creates just a single cluster
-        x.append(n)
-        score = cluster(model, embeddings, df, method, clusterMethod, n)
-        y.append(score)
-        print(score)
-        n += 0.001
+        fig, ax = plt.subplots()
+        x, y = [], []
+        n = 0.001
+        while n <= 0.065:  # beyond this, it creates just a single cluster
+            x.append(n)
+            score = cluster(model, embeddings, df, False, clusterMethod, n)
+            y.append(score)
+            print(score)
+            n += 0.001
 
-    ax.plot(x, y)
-    ax.set(ylim=(0, 1), xlim=(0, n))
-    plt.xlabel("eps")
-    plt.ylabel("Adjusted Rand Score")
-    plt.title(f"{clusterMethod}")
-    plt.show()
+        ax.plot(x, y)
+        ax.set(ylim=(0, 1), xlim=(0, n))
+        plt.xlabel("eps")
+        plt.ylabel("Adjusted Rand Score")
+        plt.title(f"{clusterMethod}")
+        plt.show()
 
-    fig.savefig(
-        f"Results/Cluster Score Variation/{clusterMethod}/Adjusted Rand Score/default.png"
-    )
+        fig.savefig(
+            f"Results/Cluster Score Variation/{clusterMethod}/Adjusted Rand Score/default.png"
+        )
 
     return f"Done with {model}"
-
-
-# Make functions for 2-3 different clustering techniques and use them
 
 
 if __name__ == "__main__":

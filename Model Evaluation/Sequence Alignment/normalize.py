@@ -1,18 +1,35 @@
 import numpy as np
 import pandas as pd
-import array
+import time
+from pathlib import Path
 
-module = "Biotite"
-scores = pd.read_csv(f"Sequence Alignment Scores/{module}/alignmentScoresFilled.csv")
+module = "Biopython"
 
 
-def normalize(scores):
-    scores = scores.astype(float)
+def normalize(filePath):
+    scores = scores = pd.read_csv(filePath).astype(float)
+    start = time.time()
     seqLen = scores.loc[0][0]
     for i in range(len(scores)):
         scores.loc[i] = scores.loc[i] / seqLen
-    scores.to_csv(f"Sequence Alignment Scores/{module}/normalizedScores.csv")
+    scores.to_csv(filePath, index=False)
+    finish = time.time()
+    print(
+        f"Done with {str(filePath).split('/')[-1].rstrip('.fasta')}'s scores in {round(finish - start)} seconds."
+    )
 
 
 if __name__ == "__main__":
-    normalize(scores)
+    beginning = time.time()
+    count = 0
+
+    directory = f"Sequence Alignment Scores/{module}/Genes"  # change this depending on model directory.
+
+    for file in Path(directory).glob("*.csv"):
+        count += 1
+        normalize(file)
+
+    end = time.time()
+    print(
+        f"Done with normalizing {count} dataframes in {round(end - beginning)} seconds."
+    )
