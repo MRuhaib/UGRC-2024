@@ -40,7 +40,23 @@ models = [
 ]
 """
 models = [
-    "LongSafari/hyenadna-medium-450k-seqlen-hf",
+    "zhihan1996/DNABERT-S",
+    "zhihan1996/DNABERT-2-117M",
+    "AIRI-Institute/gena-lm-bigbird-base-t2t",
+    "InstaDeepAI/nucleotide-transformer-2.5b-multi-species",
+    "InstaDeepAI/nucleotide-transformer-2.5b-1000g",
+    "songlab/gpn-brassicales",
+    "PoetschLab/GROVER",
+]
+
+genes = [
+    "YAL001C",
+    "YAL007C",
+    "YAL018C",
+    "YAL022C",
+    "YAL026C",
+    "YJR136C",
+    "YPR192W",
 ]
 
 
@@ -77,16 +93,20 @@ def plotter(model, df, method, cluster, algo=None):
         results, params = T_SNE([[0]])
         columns = ["TSNE1", "TSNE2"]
 
-    fig, ax = plt.subplots(figsize=(8, 6))
+    fig, ax = plt.subplots(figsize=(8, 8))
     sns.set_style("darkgrid", {"grid.color": ".6", "grid.linestyle": ":"})
     sns.scatterplot(data=df, x=columns[0], y=columns[1], hue=cluster, palette="hls")
-    sns.move_legend(ax, "upper left", bbox_to_anchor=(1, 1))
+    # sns.move_legend(ax, "upper left", bbox_to_anchor=(1, 1))
+    plt.legend(title="Clade", fontsize=7, title_fontsize=9, bbox_to_anchor=(1, 1))
     plt.title(
         f"Scatter plot of {model}'s embeddings using {f'{algo} clustering' if cluster == 'Cluster' else method}"
     )
     plt.xlabel(columns[0])
     plt.ylabel(columns[1])
-    plt.axis("equal")
+    ax.set_xlim(-100, 100)
+    ax.set_ylim(-100, 100)
+
+    # plt.axis("equal")
 
     plt.show()
     save = "y"  # input(f"Save {model}'s plot? y/n")
@@ -132,24 +152,19 @@ def cluster(model, embeddings, df, method, algo, param):
 
 
 def main(model, method="UMAP"):
+
     embeddingsSum, embeddingsAvg = [], []
     embeddings = []
-
-    model = model.split("/")[1]
-    npzfile = np.load(f"../../Model Inference/Full/Hyena/{model}.npz")
-    ids = sorted(npzfile.files)
-
-    for seq in ids:
-        embedding = npzfile[seq]
-        embeddingsSum.append(np.sum(embedding, axis=0))
-        embeddingsAvg.append(np.sum(embedding, axis=0) / len(embedding))
-        embeddings.append(embedding[0])
 
     clades = []
     missing = []
     with open("../Data Labelling/labels.txt", "r+") as f:
         seqDict = eval(f.read())
+        for element in seqDict:
+            clades.append(element["clade"])
 
+        """
+        #with the npz files:
         for seq in seqDict:
             if seq["name"] not in ids:
                 missing.append(seq["name"])
@@ -162,9 +177,24 @@ def main(model, method="UMAP"):
             for element in seqDict:
                 if seq == element["name"]:
                     clades.append(element["clade"])
+        """
 
-    """
-    #this is for traditional txt/json files 
+    """Full - genome embeddings:
+
+    # This is for compressed npz files.
+
+    model = model.split("/")[1]
+    npzfile = np.load(f"../../Model Inference/Full/Hyena/{model}.npz")
+    ids = sorted(npzfile.files)
+
+    for seq in ids:
+        embedding = npzfile[seq]
+        embeddingsSum.append(np.sum(embedding, axis=0))
+        embeddingsAvg.append(np.sum(embedding, axis=0) / len(embedding))
+        embeddings.append(embedding[0])
+
+    # this is for traditional txt/json files
+
     with open(
         f"../../Model Inference/Embeddings/Full/Hyena/{model}.json",  # remove hyena
         "r+",  # remember to turn back to .txt file for non-full genome embeddings
@@ -179,33 +209,50 @@ def main(model, method="UMAP"):
             )
     """
 
+    gene = genes[0]
+    model = models[0]
+
+    with open(
+        f"../../Model Inference/Embeddings/{gene}/{(model).split('/')[1]}_{gene}.txt",  # remove Hyena
+        "r+",
+    ) as f:  # add hyena in a separate run.
+        modelEmbeddings = eval(f.read())
+
+    for element in modelEmbeddings:
+        embeddings.append(element["embedding"])
+
     embeddingsSum, embeddingsAvg = np.array(embeddingsSum), np.array(embeddingsAvg)
 
-    task = input(
-        'Enter task to be done: UMAP/TSNE Vizualisation = "dimReduction", clustering vizualization = "cluster", cluster scoring = "score"'
-    )
+    task = "vizualise"  # input('Enter task to be done: UMAP/TSNE Vizualisation = "vizualise", clustering vizualization = "cluster", cluster scoring = "score"')
 
     # method = input("Enter dimension reduction method:").upper()
     if method == "UMAP":
-        resultsSum, paramsSum = U_MAP(embeddings)
-        resultsAvg, paramsAvg = U_MAP(embeddingsAvg)
+        results, params = U_MAP(embeddings)
+        # resultsSum, paramsSum = U_MAP(embeddingsSum)
+        # resultsAvg, paramsAvg = U_MAP(embeddingsAvg)
         columns = ["UMAP1", "UMAP2"]
     elif method == "TSNE":
-        resultsSum, paramsSum = T_SNE(embeddings)
-        resultsAvg, paramsAvg = T_SNE(embeddingsAvg)
+        results, params = T_SNE(embeddings)
+        # resultsSum, paramsSum = T_SNE(embeddingsSum)
+        # resultsAvg, paramsAvg = T_SNE(embeddingsAvg)
         columns = ["TSNE1", "TSNE2"]
 
-    sumDF = pd.DataFrame(resultsSum, columns=columns)
-    avgDF = pd.DataFrame(resultsAvg, columns=columns)
-    avgDF["Clades"] = clades
-    sumDF["Clades"] = clades
+    singleGeneDF = pd.DataFrame(results, columns=columns)
+    singleGeneDF["Clades"] = clades
+    # sumDF = pd.DataFrame(resultsSum, columns=columns)
+    # avgDF = pd.DataFrame(resultsAvg, columns=columns)
+    # avgDF["Clades"] = clades
+    # sumDF["Clades"] = clades
 
-    if task == "dimReduction":
+    if task == "vizualise":
         # This is for plotting the UMAP/TSNE results:
+        plotter(model, singleGeneDF, method, "Clades")
+        """
         print("With embeddings summed:")
         plotter(model, sumDF, method, "Clades")
         print("With embeddings averaged:")
         plotter(model, avgDF, method, "Clades")
+        """
 
     elif task == "cluster":
         algos = [

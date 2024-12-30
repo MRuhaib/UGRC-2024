@@ -10,8 +10,8 @@ Implement both methods here - direct score comparison and rankings comparison
 Method 1: rankings evaluation: use the ndcg metric.
 Method 2: direct similarity score comparison: normalize seq alignment scores by dividing by 3573 and calculate each model's cos sim score loss against it; then aggregate it all.
 """
-seqAlignmentMethod = 'Biopython' #else, biopython
-distMethod = 'Euclidean' #else, use Cosine/Filled
+seqAlignmentMethod = "Biopython"  # else, biopython
+distMethod = "Euclidean"  # else, use Cosine/Filled
 
 hyenaModels = [
     "LongSafari/hyenadna-tiny-1k-seqlen-hf",
@@ -46,41 +46,66 @@ genes = [
     ["YPR192W", 918],
 ]
 
-#Method 2:
+# Method 2:
 
-def evaluateScoreLoss(model): #Defunct; ignore this.
-    modelScores = pd.read_csv(f'Model Rankings/Embeddings Alignment/Embedding Alignment Scores/{distMethod}/Hyena/{model.split('/')[1]}Scores.csv') #remove hyena
+
+def evaluateScoreLoss(model):  # Defunct; ignore this.
+    modelScores = pd.read_csv(
+        f'Model Rankings/Embeddings Alignment/Embedding Alignment Scores/{distMethod}/Hyena/{model.split("/")[1]}Scores.csv'
+    )  # remove hyena
     lossDF = pd.DataFrame(columns=[i for i in range(len(modelScores))])
     performance = []
     totalLoss = 0
     for seq in range(len(modelScores)):
         trueScore = seqScores.iloc[seq]
         modelScore = modelScores.iloc[seq]
-        loss = abs(trueScore - modelScore) #Since higher cos-sim score = higher sequence alignment score = higher similarity
+        loss = abs(
+            trueScore - modelScore
+        )  # Since higher cos-sim score = higher sequence alignment score = higher similarity
         lossDF[seq] = loss
-        #loss = mean_absolute_error(trueScore, modelScore)
+        # loss = mean_absolute_error(trueScore, modelScore)
         totalLoss += loss
         performance.append(sum(loss))
-    #lossDF.std.to_csv(f"Model Performance/Standard Deviations/Hyena/{model.split('/')[1]}.csv") #remove hyena
+    # lossDF.std.to_csv(f"Model Performance/Standard Deviations/Hyena/{model.split('/')[1]}.csv") #remove hyena
     totalLoss = round(totalLoss, 3)
     return performance, totalLoss, model, lossDF
 
+
 def evaluateScoreCorr(model, gene):
-    seqScores = pd.read_csv(f"../Sequence Alignment/Sequence Alignment Scores/{seqAlignmentMethod}/Genes/{gene}_scores.csv")
-    modelScores = pd.read_csv(f"C:/Users/Ruhaib/Downloads/IIT Stuff/Research/Nirav Sir's Lab/Model Evaluation/Embeddings Evaluation/Single Gene Embeddings/Embeddings Alignment/Embedding Alignment Scores/{distMethod}/{gene}/{model.split('/')[1]}_{gene}_distances.csv") #remove hyena
+    seqScores = pd.read_csv(
+        f"../Sequence Alignment/Sequence Alignment Scores/{seqAlignmentMethod}/Genes/{gene}_scores.csv"
+    )
+    modelScores = pd.read_csv(
+        f"C:/Users/Ruhaib/Downloads/IIT Stuff/Research/Nirav Sir's Lab/Model Evaluation/Embeddings Evaluation/Single Gene Embeddings/Embeddings Alignment/Embedding Alignment Scores/{distMethod}/{gene}/{model.split('/')[1]}_{gene}_distances.csv"
+    )  # remove hyena
     corr = modelScores.corrwith(seqScores)
     return corr, model
 
+
 def evaluateFlattenedCorr(model, gene):
-    seqScores = pd.read_csv(f"C:/Users/Ruhaib/Downloads/IIT Stuff/Research/Nirav Sir's Lab/Model Evaluation/Sequence Alignment/Sequence Alignment Scores/{seqAlignmentMethod}/Genes/{gene}_scores.csv").to_numpy().flatten()
-    modelScores = pd.read_csv(f"C:/Users/Ruhaib/Downloads/IIT Stuff/Research/Nirav Sir's Lab/Model Evaluation/Embeddings Evaluation/Single Gene Embeddings/Embeddings Alignment/Embedding Alignment Scores/{distMethod}/{gene}/{model.split('/')[1]}_{gene}_distances.csv").to_numpy().flatten()
+    seqScores = (
+        pd.read_csv(
+            f"C:/Users/Ruhaib/Downloads/IIT Stuff/Research/Nirav Sir's Lab/Model Evaluation/Sequence Alignment/Sequence Alignment Scores/{seqAlignmentMethod}/Genes/{gene}_scores.csv"
+        )
+        .to_numpy()
+        .flatten()
+    )
+    modelScores = (
+        pd.read_csv(
+            f"C:/Users/Ruhaib/Downloads/IIT Stuff/Research/Nirav Sir's Lab/Model Evaluation/Embeddings Evaluation/Single Gene Embeddings/Embeddings Alignment/Embedding Alignment Scores/{distMethod}/{gene}/{model.split('/')[1]}_{gene}_distances.csv"
+        )
+        .to_numpy()
+        .flatten()
+    )
     return stats.pearsonr(seqScores, modelScores)[0]
 
 
 if __name__ == "__main__":
-    print(f"Using {seqAlignmentMethod}'s sequence alignment scores and {distMethod} metric for embedding comparison:")
+    print(
+        f"Using {seqAlignmentMethod}'s sequence alignment scores and {distMethod} metric for embedding comparison:"
+    )
 
-    '''
+    """
     #For displaying all correlations of each model:
     for gene in genes:
         plt.rcParams['font.size'] = 6
@@ -98,27 +123,44 @@ if __name__ == "__main__":
         #plt.subplots_adjust(bottom = 1)
         plt.show()
         fig.savefig(f"C:/Users/Ruhaib/Downloads/IIT Stuff/Research/Nirav Sir's Lab/Model Evaluation/Embeddings Evaluation/Single Gene Embeddings/Histograms/Euclidean/Individual/{gene[0]}_biopython.png")
-    '''
+    """
 
     for gene in genes:
         x, y = [], []
         fig, ax = plt.subplots()
         for model in models:
-            name = model.split('/')[1]
+            name = model.split("/")[1]
             y.append(evaluateFlattenedCorr(model, gene[0]))
-            x.append(name.split('-')[0] + ' ' + name.split('-')[1] + '\n' + name.split('-')[2] + ' ' + name.split('-')[3] if len(name.split('-')) > 3 else name)
+            x.append(
+                name.split("-")[0]
+                + " "
+                + name.split("-")[1]
+                + "\n"
+                + name.split("-")[2]
+                + " "
+                + name.split("-")[3]
+                if len(name.split("-")) > 3
+                else name
+            )
 
-        ax.set_title(f"{gene[0]} gene; {gene[1]} nucleotides\nCorrelation between the models' embeddings' pairwise euclidean distances and the strain sequences' pairwise sequence alignment scores", fontsize=10)
+        ax.set_title(
+            f"{gene[0]} gene; {gene[1]} nucleotides\nCorrelation between the models' embeddings' pairwise euclidean distances and the strain sequences' pairwise sequence alignment scores",
+            fontsize=10,
+        )
         ax.stem(x, y)
         ax.set(ylim=(-1, 0))
-        plt.ylabel('Overall correlation between sequences\' Needleman-Wunsch Alignment Scores and embeddings\' Euclidean Distances', fontsize = 8)
-        plt.xlabel('Genomic Language Model', fontsize = 8)
-        plt.xticks(fontsize = 7)
+        plt.ylabel(
+            "Overall correlation between sequences' Needleman-Wunsch Alignment Scores and embeddings' Euclidean Distances",
+            fontsize=8,
+        )
+        plt.xlabel("Genomic Language Model", fontsize=8)
+        plt.xticks(fontsize=7)
         plt.show()
-        fig.savefig(f"C:/Users/Ruhaib/Downloads/IIT Stuff/Research/Nirav Sir's Lab/Model Evaluation/Embeddings Evaluation/Single Gene Embeddings/Histograms/Euclidean/Overall/{gene[0]}_biopython.png")
-        
+        fig.savefig(
+            f"C:/Users/Ruhaib/Downloads/IIT Stuff/Research/Nirav Sir's Lab/Model Evaluation/Embeddings Evaluation/Single Gene Embeddings/Histograms/Euclidean/Overall/{gene[0]}_biopython.png"
+        )
 
-    '''
+    """
     with concurrent.futures.ProcessPoolExecutor() as executor:
         #results = executor.map(evaluateScoreLoss, models)
         results = executor.map(evaluateScoreCorr, models)
@@ -155,4 +197,4 @@ if __name__ == "__main__":
     ax.set(ylim=(0, 1))
     
     plt.show()
-    '''
+    """
