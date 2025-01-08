@@ -21,9 +21,13 @@ models = [
     "Hyena-1k",
     "Hyena-16k",
     "Hyena-32k",
+    "Hyena-160k",
+    "Hyena-450k",
+    "Hyena-1m",
 ]
 
 
+"""
 def mutater(x, seq):
     seqLength = len(seq)
     mutationNumber = round(
@@ -50,6 +54,28 @@ def mutater(x, seq):
         seq = seq[:i] + newBase + seq[i + 1 :]
     return seq
     # Save the new sequence in Mutated Sequences/(Sequence Type)/(Length)
+"""
+
+
+# Optimised function:
+def mutater(x, seq):
+    seqLength = len(seq)
+    mutationNumber = round(x * seqLength / 100)
+
+    # This generate unique mutation positions, avoids checking each time.
+    mutationPositions = random.sample(range(seqLength), mutationNumber)
+
+    seqList = list(seq)
+
+    for i in mutationPositions:
+        ogBase = seqList[i]
+        newBase = random.choice(["A", "T", "C", "G"])
+        while newBase == ogBase:  # Ensure the new base is different
+            newBase = random.choice(["A", "T", "C", "G"])
+        seqList[i] = newBase
+
+    # Convert back to string
+    return "".join(seqList)
 
 
 def seqReader(file):
@@ -65,15 +91,22 @@ if __name__ == "__main__":
     for model in models:
         print("Now starting with:", model)
         for fraction in fractions:
+            if model == "Hyena-1m" and fraction in [
+                "75",
+                "100",
+            ]:  # since the GPU isn't able to run inference for these sequences anyways.
+                continue
             mainPath = f"{seqType}/{model}/{fraction}"
-            ogDirectory = f"./Original Sequences/{mainPath}"
-            newDirectory = f"./Mutated Sequences/{mainPath}"
+            ogDirectory = f"Sequences/Original Sequences/{mainPath}"
+            newDirectory = f"Sequences/Mutated Sequences/{mainPath}"
             os.makedirs(f"{newDirectory}", exist_ok=True)
             for filename in Path(ogDirectory).glob("*.txt"):
                 ogSeq = ""
                 with open(filename, "r+") as file:
                     ogSeq = str(file.read())
-                gene = str(filename).split("\\")[-1].rstrip(".txt")
+                print(len(ogSeq))
+                gene = str(filename).split("/")[-1].rstrip(".txt")
+                print(gene)
                 for x in range(5, 51, 5):
                     mutations = []
                     for i in range(numMutations):
